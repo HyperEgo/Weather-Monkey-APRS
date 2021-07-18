@@ -1,331 +1,299 @@
-package edu.uah.cpe.weathermonkey.app;
+package fizzsoftware.weathermonkeyaprs;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
-import android.media.Image;
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
-import android.view.GestureDetector;
+import android.support.p000v4.content.ContextCompat;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
+import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import org.w3c.dom.Text;
-
 import java.util.ArrayList;
 import java.util.List;
 
-
 public class main extends Activity {
+    public static final int APRS_PORT = 14580;
+    public static final String APRS_SERVER1 = "rotate.aprs.net";
+    public static final String APRS_SERVER2 = "rotate.aprs2.net";
+    public static final double HSV_DLAT = 34.73d;
+    public static final double HSV_DLONG = -86.58d;
+    public static final String HSV_NAME = "Huntsville, AL";
+    private static final int MENU_ITEM1 = 0;
+    private static final int MENU_ITEM2 = 1;
+    public static final int RADIUS1 = 700;
+    public static final int RADIUS2 = 500;
+    public static final int RADIUS3 = 300;
+    public static final int RADIUS4 = 1000;
+    public static final int UAH_PORT = 20154;
+    public static final String UAH_SERVER = "blackhawk.ece.uah.edu";
+    private Locale locz;
+    /* access modifiers changed from: private */
+    public Spinner spin;
+    private UserData user;
 
-    TextView txtStart;
-    EditText txtCallsign;
-    LinearLayout pLayout;
-    Spinner spin;
-    RadioGroup radgrp;
-    RadioButton rad1, rad2;
-    int intFlag = 0;
-    Boolean servFlag = false;
-    Location locz;
-
-
-    private void setLoc(Location locale) {
-        locz = locale;
+    public void singleAlert(String title, String message, Drawable icon) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(title).setIcon(icon).setMessage(message).setCancelable(false).setPositiveButton("OK", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+            }
+        });
+        builder.create().show();
     }
 
+    public void initializeGUI() {
+        ((RadioButton) ((RadioGroup) findViewById(C0194R.C0196id.rdbGp2)).getChildAt(0)).setChecked(true);
+        ((RadioButton) ((RadioGroup) findViewById(C0194R.C0196id.rdbGp1)).getChildAt(0)).setChecked(true);
+        setLoc(new Locale(HSV_NAME, 34.73d, -86.58d, false));
+        ImageView txtStart = (ImageView) findViewById(C0194R.C0196id.txtStart);
+        txtStart.setFocusable(true);
+        txtStart.setFocusableInTouchMode(true);
+        txtStart.requestFocus();
+    }
 
-    private boolean isEmpty(EditText etText) {  // return true if empty
+    public void setLoc(Locale local) {
+        this.locz = local;
+    }
+
+    public boolean isEmpty(EditText etText) {
         return etText.getText().toString().trim().length() == 0;
     }
 
-
-    // soft keyboard input manager
     public static void hideSoftKeyboard(Activity act) {
-        InputMethodManager inputMethodManager = (InputMethodManager)  act.getSystemService(Activity.INPUT_METHOD_SERVICE);
-        inputMethodManager.hideSoftInputFromWindow(act.getCurrentFocus().getWindowToken(), 0);
+        ((InputMethodManager) act.getSystemService("input_method")).hideSoftInputFromWindow(act.getCurrentFocus().getWindowToken(), 0);
     }
 
-
-    // listener for enter button - main activity background
     public void setupUI(View view) {
-        final TextView txtLocale = (TextView)findViewById(R.id.txtLocale);
-        //Set up touch listener for non-text box views to hide keyboard.
-        if(!(view instanceof EditText)) {
+        final TextView txtLocale = (TextView) findViewById(C0194R.C0196id.txtLocale);
+        if (!(view instanceof EditText)) {
             view.setOnTouchListener(new View.OnTouchListener() {
                 public boolean onTouch(View v, MotionEvent event) {
                     txtLocale.setFocusable(true);
-                    txtLocale.setFocusableInTouchMode(true);  // add this line
+                    txtLocale.setFocusableInTouchMode(true);
                     txtLocale.requestFocus();
-                    hideSoftKeyboard(main.this);
+                    main.hideSoftKeyboard(main.this);
                     return false;
                 }
             });
         }
-        //If a layout container, iterate over children and seed recursion.
         if (view instanceof ViewGroup) {
             for (int i = 0; i < ((ViewGroup) view).getChildCount(); i++) {
-                View innerView = ((ViewGroup) view).getChildAt(i);
-                setupUI(innerView);
+                setupUI(((ViewGroup) view).getChildAt(i));
             }
         }
     }
 
-
-    // listener for enter button - soft keyboard
     public void addKeyListener() {
-        final TextView txtLocale = (TextView)findViewById(R.id.txtLocale);
-
-        // add a keylistener to keep track user input
-        EditText txtCallsign = (EditText)findViewById(R.id.txtCallsign);
-        txtCallsign.setOnKeyListener(new View.OnKeyListener() {
+        final TextView txtLocale = (TextView) findViewById(C0194R.C0196id.txtLocale);
+        ((EditText) findViewById(C0194R.C0196id.txtCallsign)).setOnKeyListener(new View.OnKeyListener() {
             public boolean onKey(View v, int keyCode, KeyEvent event) {
-                // if keydown and "enter" is pressed
-                if ((event.getAction() == KeyEvent.ACTION_DOWN)
-                        && (keyCode == KeyEvent.KEYCODE_ENTER)) {
-                    // display a floating message
-//                    Toast.makeText(main.this, "Enter key pressed", Toast.LENGTH_SHORT).show();
-                    txtLocale.setFocusable(true);
-                    txtLocale.setFocusableInTouchMode(true);  // add this line
-                    txtLocale.requestFocus();
-                    hideSoftKeyboard(main.this);
-                    return true;
+                if (event.getAction() != 0 || keyCode != 66) {
+                    return false;
                 }
-                return false;
+                txtLocale.setFocusable(true);
+                txtLocale.setFocusableInTouchMode(true);
+                txtLocale.requestFocus();
+                main.hideSoftKeyboard(main.this);
+                return true;
             }
         });
     }
 
-
     public void addItemsToSpinner() {
-
-//        List<String> list = new ArrayList<String>();
-//        list.add("hi there");
-//        list.add("howdy");
-//        list.add("welcome");
-//        ArrayAdapter<String> dataAdapter = new ArrayAdapter<String>(this,
-//                android.R.layout.simple_spinner_item, list);
-
-        List<Location> list = new ArrayList<Location>();
-        list.add(new Location("Huntsville, AL", 34.73, -86.58, 1));
-        list.add(new Location("Birmingham, AL", 33.52, -86.81, 2));
-        list.add(new Location("Mobile, AL", 30.69, -88.04, 3));
-        list.add(new Location("Nashville, TN", 36.16, -86.78, 4));
-        list.add(new Location("Seattle, WA", 47.60, -122.33, 5));
-        list.add(new Location("Spokane, WA", 47.65, -117.42, 6));
-        list.add(new Location("Las Vegas, NV", 36.12, -115.17, 7));
-        list.add(new Location("other", 0, 0, 99));
-
-        ArrayAdapter<Location> dataAdapter = new ArrayAdapter<Location>(this, R.layout.spinner_layout, list);
-
-        dataAdapter.setDropDownViewResource(R.layout.spinner_drop_down);
-        spin.setAdapter(dataAdapter);
+        List<Locale> list = new ArrayList<>();
+        list.add(new Locale(HSV_NAME, 34.73d, -86.58d, false));
+        list.add(new Locale("Albany, NY", 42.65d, -73.75d, false));
+        list.add(new Locale("Birmingham, AL", 33.52d, -86.81d, false));
+        list.add(new Locale("Bismarck, ND", 46.81d, -100.77d, false));
+        list.add(new Locale("Chicago, IL", 41.83d, -87.68d, false));
+        list.add(new Locale("Dallas, TX", 32.77d, -96.79d, false));
+        list.add(new Locale("Las Vegas, CA", 36.12d, -115.17d, false));
+        list.add(new Locale("Los Angles, CA", 34.05d, -118.25d, false));
+        list.add(new Locale("Mobile, AL", 30.69d, -88.04d, false));
+        list.add(new Locale("Nashville, TN", 36.16d, -86.78d, false));
+        list.add(new Locale("Seattle, WA", 47.6d, -122.33d, false));
+        list.add(new Locale("=>> Custom Location <<=", 0.0d, 0.0d, true));
+        ArrayAdapter<Locale> dataAdapter = new ArrayAdapter<>(this, C0194R.layout.spinner_layout, list);
+        dataAdapter.setDropDownViewResource(C0194R.layout.spinner_drop_down);
+        this.spin.setAdapter(dataAdapter);
     }
 
+    public void getServerSelection(View view) {
+        switch (((RadioGroup) findViewById(C0194R.C0196id.rdbGp1)).getCheckedRadioButtonId()) {
+            case C0194R.C0196id.rdb1:
+                this.user.setServerName(APRS_SERVER1);
+                this.user.setServerPort(APRS_PORT);
+                return;
+            case C0194R.C0196id.rdb2:
+                this.user.setServerName(APRS_SERVER2);
+                this.user.setServerPort(APRS_PORT);
+                return;
+            case C0194R.C0196id.rdb3:
+                this.user.setServerName(UAH_SERVER);
+                this.user.setServerPort(UAH_PORT);
+                this.user.setServerFlag(true);
+                return;
+            default:
+                Toast.makeText(this, "Bad server selection", 0).show();
+                return;
+        }
+    }
 
+    public void getRadiusSelection(View view) {
+        switch (((RadioGroup) findViewById(C0194R.C0196id.rdbGp2)).getCheckedRadioButtonId()) {
+            case C0194R.C0196id.rdb4:
+                this.user.setRadioId(RADIUS4);
+                return;
+            case C0194R.C0196id.rdb5:
+                this.user.setRadioId(RADIUS1);
+                return;
+            case C0194R.C0196id.rdb6:
+                this.user.setRadioId(RADIUS2);
+                return;
+            case C0194R.C0196id.rdb7:
+                this.user.setRadioId(RADIUS3);
+                return;
+            default:
+                Toast.makeText(this, "Bad radius selection", 0).show();
+                return;
+        }
+    }
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    public void onClick(View view) {
+        EditText txtCallsign = (EditText) findViewById(C0194R.C0196id.txtCallsign);
+        if (isEmpty(txtCallsign)) {
+            txtCallsign.setError("Empty Call");
+            txtCallsign.setHint("Empty Callsign");
+            txtCallsign.setHintTextColor(getResources().getColor(C0194R.color.button_material_dark));
+            return;
+        }
+        txtCallsign.setError((CharSequence) null);
+        this.user.setCallSign(txtCallsign.getText().toString());
+        getServerSelection(view);
+        getRadiusSelection(view);
+        this.user.setOutput("user " + this.user.getCallSign() + " pass -1 vers testsoftware 1.0_05 filter r/" + this.locz.getLatit() + "/" + this.locz.getLongit() + "/" + Integer.toString(this.user.getRadioId()) + "\n");
+        Intent i = new Intent(getApplicationContext(), SecondActivity.class);
+        i.putExtra("user", this.user);
+        startActivityForResult(i, 1);
+    }
+
+    /* access modifiers changed from: protected */
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-
-        Location locky = new Location("Huntsville, AL", 34.73, -86.58, 1);  // initialize Location
-        setLoc(locky);
-
-        txtStart = (TextView)findViewById(R.id.txtStart);
-        txtStart.setFocusable(true);
-        txtStart.setFocusableInTouchMode(true);  // add this line
-        txtStart.requestFocus();
-
-        radgrp = (RadioGroup)findViewById(R.id.rdbGp1);
-        rad1 = (RadioButton)findViewById(R.id.rdb1);
-        rad2 = (RadioButton)findViewById(R.id.rdb2);
-        radgrp.check(rad1.getId());
-
-        spin = (Spinner)findViewById(R.id.spinLocale);
-        pLayout = (LinearLayout)findViewById(R.id.parent);
-        setupUI(pLayout);
+        setContentView(C0194R.layout.activity_main);
+        initializeGUI();
+        this.user = new UserData();
+        this.spin = (Spinner) findViewById(C0194R.C0196id.spinLocale);
+        setupUI((ScrollView) findViewById(C0194R.C0196id.parent));
         addKeyListener();
         addItemsToSpinner();
-
-
-        spin.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
+        this.spin.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
-                if(intFlag>0) {
-                    final Location loct = (Location)adapterView.getItemAtPosition(i);  // cast spinner obj to Location obj
-                    if (loct.getKey()==99) {  // "other" option selected
-
-                        LayoutInflater li = LayoutInflater.from(getApplicationContext());
-                        View promptsView = li.inflate(R.layout.alert_map, null);
-
-                        AlertDialog.Builder alertDia = new AlertDialog.Builder(main.this);
-                        alertDia.setView(promptsView);
-                        alertDia.setCancelable(false);
-
-                        //get onclick for image view
-                        final EditText inLat = (EditText)promptsView.findViewById(R.id.txtLat);
-                        final EditText inLong = (EditText)promptsView.findViewById(R.id.txtLong);
-                        ImageView img = (ImageView)promptsView.findViewById(R.id.imgMap);
-                        img.setFocusable(true);
-                        img.setFocusableInTouchMode(true);  // add this line
-                        img.requestFocus();
-
-                        img.setOnTouchListener(new View.OnTouchListener() {
-                            @Override
-                            public boolean onTouch(View view, MotionEvent motionEvent) {
-                                final int x = (int)motionEvent.getX();
-                                final int y = (int)motionEvent.getY();
-
-                                // get x | y cursor position (motion event), do transformations to lat, long *HERE*
-                                // hardcoded map picture dimensions
-                                LLfromXY util = new LLfromXY();
-                                util.setMapValues(420, 760, 50, 24, -126, -66);
-                                double userLat = util.getLatitude(y);
-                                double userLon = util.getLongitude(x);
-
-                                inLat.setText(String.valueOf(userLat));
-                                inLong.setText(String.valueOf(userLon));
-                                return false;
+                Locale loct = (Locale) adapterView.getItemAtPosition(i);
+                if (loct.getKey()) {
+                    View promptsView = LayoutInflater.from(main.this.getApplicationContext()).inflate(C0194R.layout.alert_map, (ViewGroup) null);
+                    AlertDialog.Builder alertDia = new AlertDialog.Builder(main.this);
+                    alertDia.setTitle(main.this.getResources().getString(C0194R.string.title_map));
+                    alertDia.setIcon(C0194R.C0195drawable.chimp_stare_48);
+                    alertDia.setView(promptsView);
+                    alertDia.setCancelable(false);
+                    final EditText inLat = (EditText) promptsView.findViewById(C0194R.C0196id.txtLat);
+                    final EditText inLong = (EditText) promptsView.findViewById(C0194R.C0196id.txtLong);
+                    ImageView img = (ImageView) promptsView.findViewById(C0194R.C0196id.imgMap);
+                    img.setFocusable(true);
+                    img.setFocusableInTouchMode(true);
+                    img.requestFocus();
+                    img.setOnTouchListener(new View.OnTouchListener() {
+                        public boolean onTouch(View view, MotionEvent motionEvent) {
+                            int x = (int) motionEvent.getX();
+                            LLfromXY util = new LLfromXY();
+                            util.setMapValues(420.0d, 760.0d, 50.0d, 24.0d, -126.0d, -66.0d);
+                            double userLat = util.getLatitude((int) motionEvent.getY());
+                            double userLon = util.getLongitude(x);
+                            inLat.setText(Double.toString(userLat));
+                            inLong.setText(Double.toString(userLon));
+                            return false;
+                        }
+                    });
+                    alertDia.setNegativeButton("Close", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialogInterface, int i) {
+                            main.this.setLoc(new Locale(main.HSV_NAME, 34.73d, -86.58d, false));
+                            main.this.spin.setSelection(0);
+                        }
+                    });
+                    alertDia.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialogInterface, int i) {
+                            Locale dummy = new Locale();
+                            if (main.this.isEmpty(inLat)) {
+                                dummy.setLatit(34.73d);
+                            } else {
+                                dummy.setLatit(Double.parseDouble(inLat.getText().toString()));
                             }
-                        });
-
-
-                        // set negative button - spinner alert
-                        alertDia.setNegativeButton("Close", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialogInterface, int i) {
-                                Location dummy = new Location();
-                                String str2 = "34.73";
-                                String str3 = "-86.58";
-                                dummy.setLocale("Blank");
-                                dummy.setLatit(Double.parseDouble(str2));
-                                dummy.setLongit(Double.parseDouble(str3));
-                                setLoc(dummy);
-                                Toast.makeText(main.this, dummy.toString(), Toast.LENGTH_SHORT).show();
-//                                dialogInterface.dismiss();
+                            if (main.this.isEmpty(inLong)) {
+                                dummy.setLongit(-86.58d);
+                            } else {
+                                dummy.setLongit(Double.parseDouble(inLong.getText().toString()));
                             }
-                        });
-
-                        // set positive button - spinner alert
-                        alertDia.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialogInterface, int i) {
-                                Location dummy = new Location();
-                                String str2 = inLat.getText().toString();
-                                String str3 = inLong.getText().toString();
-
-                                if(str2.isEmpty() || str3.isEmpty()) {
-                                    str2 = "34.73";
-                                    str3 = "-86.58";
-                                    dummy.setLocale("Blank");
-                                }
-                                else {
-                                    // error checking HERE if need be;
-                                    // set str2, str3 based on some bounds
-
-                                    dummy.setLocale("Custom");
-                                }
-
-                                dummy.setLatit(Double.parseDouble(str2));
-                                dummy.setLongit(Double.parseDouble(str3));
-                                setLoc(dummy);
-                                Toast.makeText(main.this, dummy.toString(), Toast.LENGTH_SHORT).show();
-                            }
-                        });
-
-                        AlertDialog alertz = alertDia.create();
-                        alertz.show();
-
-                    }  // end other option selected
-
-                    else {
-                        setLoc(loct);
-                    }
-
+                            main.this.setLoc(dummy);
+                        }
+                    });
+                    alertDia.create().show();
+                    return;
                 }
-                intFlag = intFlag+1;
-                // Toast.makeText(adapterView.getContext(),"Locale : " + adapterView.getItemAtPosition(i).toString(),Toast.LENGTH_SHORT).show();
+                main.this.setLoc(loct);
             }
-            @Override
+
             public void onNothingSelected(AdapterView<?> adapterView) {
-
             }
-        });  // end spinner setOnItemSelected function
-
-    }  // end onCreate
-
-
-    // ok Button send info to second activity
-    public void onClick(View view){ // get values from ui: callsign, lat | long & server choice
-
-//        Toast.makeText(main.this,"OK key pressed", Toast.LENGTH_SHORT).show();
-        String str;
-        double llat, llong;
-
-        txtCallsign = (EditText)findViewById(R.id.txtCallsign);
-        if(isEmpty(txtCallsign)) {str = "K9S3X";}
-        else {str = txtCallsign.getText().toString();}
-
-        llat = locz.getLatit();
-        llong = locz.getLongit();
-//        Toast.makeText(main.this, Double.toString(llat),Toast.LENGTH_SHORT).show();
-//        Toast.makeText(main.this, Double.toString(llong),Toast.LENGTH_SHORT).show();
-
-        rad1 = (RadioButton)findViewById(R.id.rdb1);
-        if(rad1.isChecked()){servFlag=true;}
-        else {servFlag=false;}
-//        Toast.makeText(main.this,Boolean.toString(servFlag),Toast.LENGTH_SHORT).show();
-
-        Intent i = new Intent(getApplicationContext(), SecondActivity.class);
-        i.putExtra("callsign", str);
-
-        i.putExtra("llat", llat);
-        i.putExtra("llong", llong);
-
-        i.putExtra("servFlag", servFlag);
-        startActivity(i);  // start second activity
+        });
     }
 
-
-    @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.main, menu);
+        getMenuInflater().inflate(C0194R.C0197menu.menu_main, menu);
+        menu.add(0, 0, 0, "Help");
+        menu.add(0, 1, 0, "About");
         return true;
     }
 
-    @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-        if (id == R.id.action_settings) {
-            return true;
+        switch (item.getItemId()) {
+            case 0:
+                singleAlert("Help", getResources().getString(C0194R.string.help_alert1), ContextCompat.getDrawable(getBaseContext(), C0194R.C0195drawable.help_circle_su));
+                break;
+            case 1:
+                singleAlert("About", getResources().getString(C0194R.string.about_alert1), ContextCompat.getDrawable(getBaseContext(), C0194R.C0195drawable.duck_inquiry_su));
+                break;
+            case C0194R.C0196id.action_settings:
+                singleAlert("Settings", getResources().getString(C0194R.string.settings_alert1), ContextCompat.getDrawable(getBaseContext(), C0194R.C0195drawable.settings_green_su));
+                break;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    public void onSaveInstanceState(Bundle savedInstanceState) {
+        super.onSaveInstanceState(savedInstanceState);
+    }
+
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == 1 && resultCode == -1) {
+            this.user = (UserData) data.getSerializableExtra("userB");
+            ((EditText) findViewById(C0194R.C0196id.txtCallsign)).setText(this.user.getCallSign());
+        }
     }
 }
